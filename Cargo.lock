@@ -98,6 +98,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "indoc"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
+
+[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -119,6 +125,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
+name = "nessie-lex"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "072e880fa0760c6a88e4f0332b80460471f82c0efb2f02e38500d5fad6689843"
+dependencies = [
+ "indoc",
+ "nessie-lex-proc-macros",
+]
+
+[[package]]
+name = "nessie-lex-proc-macros"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "277ae8f9b06ae1e18e01dbdb2d34f56469477144949494205468735213fc686b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -138,7 +165,7 @@ name = "proof-assistant"
 version = "0.1.0"
 dependencies = [
  "egg",
- "symbol_table",
+ "nessie-lex",
 ]
 
 [[package]]

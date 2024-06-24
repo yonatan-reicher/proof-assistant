@@ -1,15 +1,14 @@
-mod lex;
-mod parse;
 mod ast;
-mod name_resolution;
 mod eval;
+mod free_variables;
+mod lex;
+mod name_resolution;
+mod parse;
 mod typecheck;
 
 use name_resolution::NameResolved;
 
-use egg::{self, EGraph, RecExpr, Symbol};
-use std::collections::{hash_map::Entry, HashMap, HashSet};
-use std::rc::Rc;
+use egg::{self, RecExpr};
 use std::env::args;
 
 fn main() {
@@ -21,17 +20,14 @@ fn main() {
         // TODO: This is a hack!
         let root = egg::Id::from(ast.as_ref().len() - 1);
         let mut name_resolved = RecExpr::default();
-        let root = NameResolved::resolve(
-            &ast,
-            root,
-            &["type"],
-            &mut name_resolved
-        ).unwrap();
-        dbg!(name_resolved);
-        let typ = typecheck::infer(todo!());
+        let root = NameResolved::resolve(&ast, root, &["type"], &mut name_resolved).unwrap();
+        dbg!(&name_resolved);
+        let mut t = typecheck::TypeChecker::new(&mut name_resolved, []);
+        let typ = t.infer(root).unwrap();
+        dbg!(&name_resolved);
         dbg!(typ);
     }
-    
+
     /*
     symbols.insert("Prop".into(), None);
     let ast = Expr::Arrow(

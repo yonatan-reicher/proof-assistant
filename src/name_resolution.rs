@@ -1,5 +1,5 @@
 use crate::ast::Expr;
-use egg::{Id, RecExpr, define_language, Symbol};
+use egg::{define_language, Id, RecExpr, Symbol};
 
 /// De-Brujin index: An index of a variable term to refer to it's variable
 /// based on the order of variable declaration.
@@ -12,6 +12,15 @@ define_language! {
     pub enum NameResolved {
         // A variable like the `x` in `x + 1`.
         Var(DeBrujin),
+        // Adds 1 to every D"B index of every variable.
+        "inc-vars" = IncreaseVars(Id),
+        // Takes 1 away from every D"B index of every variable.
+        // For 0 variables, does not do anything.
+        // But DecreaseVars and IncreaseVars cancel each other out.
+        "dec-vars" = DecreaseVars(Id),
+        // Replaces the variable at 0 of this expression.
+        // The second Id is the argument for the first one.
+        "set0" = Set0([Id; 2]),
         // A function. Written `x: t => y`
         "lam" = Func([Id; 2]),
         // A function `x: t -> y`.
@@ -25,6 +34,46 @@ define_language! {
         // TODO: Can we remove this?
         "type" = Type,
     }
+}
+
+#[cfg(test)]
+mod language_from_op_tests {
+    use egg::{ENodeOrVar::*, Pattern, PatternAst};
+
+    use super::*;
+
+    #[test]
+    fn test_var() {
+        let parsed: RecExpr<_> = "10".parse().unwrap();
+        let mut expected = RecExpr::default();
+        expected.add(NameResolved::Var(10));
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_offset() {
+        let parsed: RecExpr<_> = "(dec-vars (app 0 1))".parse().unwrap();
+        let mut expected = RecExpr::default();
+        let var0 = expected.add(NameResolved::Var(0));
+        let var1 = expected.add(NameResolved::Var(1));
+        let app = expected.add(NameResolved::App([var0, var1]));
+        expected.add(NameResolved::DecreaseVars(app));
+        assert_eq!(parsed, expected);
+    }
+
+    /*
+    #[test]
+    fn test_pattern() {
+        let parsed: PatternAst<NameResolved> = "(?O (lam ?T 0))".parse().unwrap();
+        let mut expected = PatternAst::<NameResolved>::default();
+        let t = expected.add(Var("?T".parse().unwrap()));
+        let var0 = expected.add(ENode(NameResolved::Var(0).into()));
+        let lam = expected.add(NameResolved::Func([t, var0]));
+        let
+        expected.add();
+        // let var0 = expected.add(NameResolved::Var(0))
+    }
+    */
 }
 
 struct SymbolMap {
@@ -64,10 +113,7 @@ impl SymbolMap {
     }
 
     pub fn get(&self, symbol: &Symbol) -> Option<DeBrujin> {
-        let number = self
-            .inner
-            .get(symbol)
-            .map(|vec| *vec.last().unwrap());
+        let number = self.inner.get(symbol).map(|vec| *vec.last().unwrap());
         // Reminder: number = number of symbols that existed before our symbol.
         number.map(|number| self.inner.len() - number - 1)
     }
@@ -83,7 +129,7 @@ pub enum NameResolutionError {
 /// # Example
 /// // TODO:
 /// ```rust
-/// let expr = RecExpr::default(); 
+/// let expr = RecExpr::default();
 /// let a = expr.add(Expr::Var("a".into()));
 /// ```
 fn resolve_arrow(
@@ -118,28 +164,24 @@ fn resolve(
                 Err(NameResolutionError::SymbolNotFound(*symbol))
             }
         }
-        Expr::Func(parameter, [parameter_type, ret_expr]) => {
-            resolve_arrow(
-                expr,
-                parameter,
-                *parameter_type,
-                *ret_expr,
-                NameResolved::Func,
-                context,
-                dest,
-            )
-        }
-        Expr::FuncType(parameter, [parameter_type, ret_type]) => {
-            resolve_arrow(
-                expr,
-                parameter,
-                *parameter_type,
-                *ret_type,
-                NameResolved::FuncType,
-                context,
-                dest,
-            )
-        }
+        Expr::Func(parameter, [parameter_type, ret_expr]) => resolve_arrow(
+            expr,
+            parameter,
+            *parameter_type,
+            *ret_expr,
+            NameResolved::Func,
+            context,
+            dest,
+        ),
+        Expr::FuncType(parameter, [parameter_type, ret_type]) => resolve_arrow(
+            expr,
+            parameter,
+            *parameter_type,
+            *ret_type,
+            NameResolved::FuncType,
+            context,
+            dest,
+        ),
         Expr::App([func, arg]) => {
             let func = resolve(expr, *func, context, dest)?;
             let arg = resolve(expr, *arg, context, dest)?;
@@ -156,7 +198,9 @@ impl NameResolved {
         name_resolved: &mut RecExpr<NameResolved>,
     ) -> Result<Id, NameResolutionError> {
         let mut context = SymbolMap::new();
-        for &name in names { context.add(name.into()); }
+        for &name in names {
+            context.add(name.into());
+        }
         let root = resolve(expr, root, &mut context, name_resolved)?;
         Ok(root)
     }

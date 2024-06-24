@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 egg = "0.9.5"
-nessie-lex = "0.1.4"
+nessie-lex = "0.1.5"
+thiserror = "1.*"

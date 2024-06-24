@@ -64,5 +64,6 @@ mod tests {
         assert_eq!(tokens[5].0, Token::Symbol(Symbol::FatArrow));
         assert_eq!(tokens[6].0, Token::Ident("f"));
         assert_eq!(tokens[7].0, Token::Ident("int"));
+        // TODO: Add asserts for the ranges.
     }
 }

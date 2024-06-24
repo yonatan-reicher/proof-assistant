@@ -126,9 +126,9 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "nessie-lex"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "072e880fa0760c6a88e4f0332b80460471f82c0efb2f02e38500d5fad6689843"
+checksum = "f4061d5fe31bc5ae799b260ae7a91aa15c228b1a1be0b06b3fd7766313faabd1"
 dependencies = [
  "indoc",
  "nessie-lex-proc-macros",
@@ -166,6 +166,7 @@ version = "0.1.0"
 dependencies = [
  "egg",
  "nessie-lex",
+ "thiserror",
 ]
 
 [[package]]

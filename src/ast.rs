@@ -4,7 +4,6 @@
 
 use egg::{Id, Symbol};
 use std::collections::HashMap;
-use std::rc::Rc;
 
 // TODO: Instead of an egg::Language, this should just use Box<Expr> as children
 // and be a regular syntax tree.

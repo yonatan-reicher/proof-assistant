@@ -8,24 +8,38 @@ mod typecheck;
 
 use name_resolution::NameResolved;
 
-use egg::{self, RecExpr};
+use egg::{self, RecExpr, Id};
 use std::env::args;
+
+fn run_str(input: &str) {
+    let tokens = lex::lex(input);
+    let ast = parse::parse(&tokens).unwrap();
+    // TODO: This is a hack!
+    let root = Id::from(ast.as_ref().len() - 1);
+    let mut name_resolved = RecExpr::default();
+    let root = NameResolved::resolve(&ast, root, &["type"], &mut name_resolved).unwrap();
+    let mut t = typecheck::TypeChecker::new(&mut name_resolved, []);
+    let typ = t.infer(root).unwrap();
+    dbg!(typ);
+}
+
+fn run_cli_argument() {
+    let input = args().nth(1).unwrap();
+    run_str(&input);
+}
+
+fn repl() {
+    todo!(concat![
+        "Currently no repl support. Run with a single argument in a string ",
+        "instead.",
+    ]);
+}
 
 fn main() {
     if args().len() == 2 {
-        let input = args().nth(1).unwrap();
-        let tokens = lex::lex(&input);
-        let ast = parse::parse(&tokens).unwrap();
-        dbg!(&ast);
-        // TODO: This is a hack!
-        let root = egg::Id::from(ast.as_ref().len() - 1);
-        let mut name_resolved = RecExpr::default();
-        let root = NameResolved::resolve(&ast, root, &["type"], &mut name_resolved).unwrap();
-        dbg!(&name_resolved);
-        let mut t = typecheck::TypeChecker::new(&mut name_resolved, []);
-        let typ = t.infer(root).unwrap();
-        dbg!(&name_resolved);
-        dbg!(typ);
+        run_cli_argument();
+    } else {
+        repl();
     }
 
     /*
@@ -54,49 +68,5 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    /*
-    fn func(param: impl Into<Symbol>, typ: Expr, body: Expr) -> Expr {
-        Expr::Arrow(ArrowKind::Value, param.into(), Rc::new(typ), Rc::new(body))
-    }
-
-    fn app(f: Expr, x: Expr) -> Expr {
-        Expr::App(Rc::new(f), Rc::new(x))
-    }
-
-    #[test]
-    fn test_eval_application() {
-        use Expr::*;
-        let mut symbols = SymbolTableImpl(HashMap::new());
-        symbols.insert("Prop".into(), None);
-        let ast = func(
-            "x",
-            Var("Prop".into()),
-            app(
-                func("y", Var("Prop".into()), Var("y".into())),
-                Var("x".into()),
-            ),
-        );
-        let x = ast.eval(&mut symbols);
-        assert_eq!(x, Ok(func("x", Var("Prop".into()), Var("x".into()),)));
-    }
-
-    #[test]
-    fn test_eval_shadowing() {
-        use Expr::*;
-        let mut symbols = SymbolTableImpl(HashMap::new());
-        symbols.insert("Prop".into(), None);
-        let ast = func(
-            "x",
-            Var("Prop".into()),
-            app(
-                func("x", Var("Prop".into()), Var("x".into())),
-                Var("x".into()),
-            ),
-        );
-        let x = ast.eval(&mut symbols);
-        assert_eq!(x, Ok(func("x", Var("Prop".into()), Var("x".into()),)));
-    }
-    */
+    // TODO:
 }

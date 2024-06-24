@@ -54,6 +54,7 @@ pub struct TypeChecker<'a> {
     /// An Id that points to an eclass that has `NameResolved::Type`.
     type_literal: Id,
 }
+
 impl TypeChecker<'_> {
     pub fn new(
         expr: &mut RecExpr<NameResolved>,

@@ -38,8 +38,6 @@ define_language! {
 
 #[cfg(test)]
 mod language_from_op_tests {
-    use egg::{ENodeOrVar::*, Pattern, PatternAst};
-
     use super::*;
 
     #[test]

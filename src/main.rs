@@ -6,6 +6,7 @@ mod name_resolution;
 mod parse;
 mod typecheck;
 
+use free_variables::FreeVariables;
 use name_resolution::NameResolved;
 
 use egg::{self, RecExpr, Id};
@@ -16,11 +17,14 @@ fn run_str(input: &str) {
     let ast = parse::parse(&tokens).unwrap();
     // TODO: This is a hack!
     let root = Id::from(ast.as_ref().len() - 1);
-    let mut name_resolved = RecExpr::default();
-    let root = NameResolved::resolve(&ast, root, &["type"], &mut name_resolved).unwrap();
-    let mut t = typecheck::TypeChecker::new(&mut name_resolved, []);
-    let typ = t.infer(root).unwrap();
-    dbg!(typ);
+    let mut name_resolved_expr = RecExpr::default();
+    let root = NameResolved::resolve(&ast, root, &["type"], &mut name_resolved_expr).unwrap();
+    let mut name_resolved = egg::EGraph::<NameResolved, FreeVariables>::default();
+    // TODO: Not sure root variable is correct here.
+    let root = name_resolved.add_expr(&name_resolved_expr);
+    // let mut t = typecheck::TypeChecker::new(&mut name_resolved, []);
+    // let typ = t.infer(root).unwrap();
+    // dbg!(typ);
 }
 
 fn run_cli_argument() {

@@ -5,10 +5,14 @@
 //! 2) The types will be terms.
 
 use crate::name_resolution::{DeBrujin, NameResolved};
+use crate::free_variables::FreeVariables as A; // A for Analysis.
 use egg::{Id, RecExpr};
 
-/// Type = term.
+/// Type = Expr = term.
+type Expr = NameResolved;
 type Type = NameResolved;
+
+type EGraph = egg::EGraph<Expr, A>;
 
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub enum TypeError {
@@ -46,10 +50,9 @@ impl Types {
     }
 }
 
+/*
 pub struct TypeChecker<'a> {
-    // TODO: Change this, along with probably most occournces of RecExpr,
-    //  with egg::EGraph!
-    expr: &'a mut RecExpr<NameResolved>,
+    egraph: &'a mut EGraph,
     types: Types,
     /// An Id that points to an eclass that has `NameResolved::Type`.
     type_literal: Id,
@@ -57,19 +60,19 @@ pub struct TypeChecker<'a> {
 
 impl TypeChecker<'_> {
     pub fn new(
-        expr: &mut RecExpr<NameResolved>,
+        egraph: &mut EGraph,
         types: impl IntoIterator<Item = Id>,
     ) -> TypeChecker {
-        let type_literal = expr.add(NameResolved::Type);
+        let type_literal = egraph.add(NameResolved::Type);
         TypeChecker {
-            expr,
+            egraph,
             type_literal,
             types: Types::new(types),
         }
     }
 
     pub fn infer(&mut self, root: Id) -> TypeResult<Id> {
-        match self.expr[root] {
+        match self.egraph[root] {
             NameResolved::Type => {
                 // TODO: This is wrong. To fix this, we need to implement
                 // universes.
@@ -86,7 +89,7 @@ impl TypeChecker<'_> {
                 let ret_type = self.infer(ret)?;
                 self.types.pop();
                 Ok(self
-                    .expr
+                    .egraph
                     .add(NameResolved::FuncType([param_type, ret_type])))
             }
             NameResolved::FuncType(_) => Ok(self.type_literal),
@@ -98,7 +101,7 @@ impl TypeChecker<'_> {
                 // and then infer the return type.
                 // TODO: Do both, and return whichever one works.
                 let func_type_id = self.infer(func)?;
-                let func_type = &self.expr[func_type_id];
+                let func_type = &self.egraph[func_type_id];
                 let &NameResolved::FuncType([param_type, ret_type]) = func_type else {
                     todo!();
                 };
@@ -119,7 +122,7 @@ impl TypeChecker<'_> {
     /// In this bi-directional type system, typechecking is the process of
     /// finding if the type of `root` *might* be the type in id `against`.
     pub fn typecheck(&mut self, root: Id, against: Id) -> TypeResult<()> {
-        match self.expr[root] {
+        match self.egraph[root] {
             NameResolved::Var(debrujin) => {
                 let typ = self.types.get(debrujin);
                 //if typ != against {
@@ -136,3 +139,4 @@ impl TypeChecker<'_> {
         }
     }
 }
+*/

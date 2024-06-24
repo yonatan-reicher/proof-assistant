@@ -33,6 +33,9 @@ define_language! {
         "app" = App([Id; 2]),
         // TODO: Can we remove this?
         "type" = Type,
+        // An operators like the `typeof` in C/C++.
+        "type-of" = TypeOf(Id),
+
     }
 }
 
@@ -41,7 +44,7 @@ mod language_from_op_tests {
     use super::*;
 
     #[test]
-    fn test_var() {
+    fn test_parse_var() {
         let parsed: RecExpr<_> = "10".parse().unwrap();
         let mut expected = RecExpr::default();
         expected.add(NameResolved::Var(10));
@@ -49,13 +52,23 @@ mod language_from_op_tests {
     }
 
     #[test]
-    fn test_offset() {
+    fn test_parse_offset() {
         let parsed: RecExpr<_> = "(dec-vars (app 0 1))".parse().unwrap();
         let mut expected = RecExpr::default();
         let var0 = expected.add(NameResolved::Var(0));
         let var1 = expected.add(NameResolved::Var(1));
         let app = expected.add(NameResolved::App([var0, var1]));
         expected.add(NameResolved::DecreaseVars(app));
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_type_of() {
+        let parsed: RecExpr<_> = "(type-of (lam 0 0))".parse().unwrap();
+        let mut expected = RecExpr::default();
+        let var0 = expected.add(NameResolved::Var(0));
+        let lam = expected.add(NameResolved::Func([var0, var0]));
+        expected.add(NameResolved::TypeOf(lam));
         assert_eq!(parsed, expected);
     }
 

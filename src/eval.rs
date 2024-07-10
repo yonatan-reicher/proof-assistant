@@ -1,16 +1,10 @@
-use crate::{
-    free_variables::FreeVariables,
-    name_resolution::NameResolved,
-};
+use crate::{free_variables::FreeVariables, name_resolution::NameResolved};
 use egg::{rewrite, Analysis, Applier, EGraph, Id, Rewrite, Subst, Symbol};
 
 type Lang = NameResolved;
 
 pub fn rules() -> Vec<Rewrite<Lang, FreeVariables>> {
-    let mut v = vec![
-        beta_reduction(),
-        eta_reduction(),
-    ];
+    let mut v = vec![beta_reduction(), eta_reduction()];
     v.extend(set0_reduction());
     v.extend(inc_dec_vars_reduction());
     v
@@ -57,9 +51,11 @@ impl<N: Analysis<Lang>> Applier<Lang, N> for VarApplier {
                 if let &Lang::Var(index) = node {
                     let new_index = self.inc_or_dec.offset(index);
                     Some(new_index)
-                } else { None }
+                } else {
+                    None
+                }
             })
-            // We collect to a vector so we can iterate the nodes while 
+            // We collect to a vector so we can iterate the nodes while
             // modifying the egraph.
             .collect::<Vec<_>>();
         let mut ret = vec![];
@@ -94,17 +90,17 @@ fn var_0_is_not_free(
     }
 }
 
-fn is_var(
-    var: &'static str,
-) -> impl Fn(&mut EGraph<Lang, FreeVariables>, Id, &Subst) -> bool {
+fn is_var(var: &'static str) -> impl Fn(&mut EGraph<Lang, FreeVariables>, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
 
     move |egraph, _, subst| {
         // TODO: Maybe check if this has a free variable because it must if it
         // is a variable node.
         let id = subst[var];
-        egraph[id].nodes.iter()
-        .any(|node| matches!(node, Lang::Var(_)))
+        egraph[id]
+            .nodes
+            .iter()
+            .any(|node| matches!(node, Lang::Var(_)))
     }
 }
 
@@ -159,8 +155,14 @@ pub fn set0_reduction() -> Vec<Rewrite<NameResolved, FreeVariables>> {
 }
 
 pub fn inc_dec_vars_reduction() -> Vec<Rewrite<Lang, FreeVariables>> {
-    let inc_v = VarApplier { var: "?V".parse().unwrap(), inc_or_dec: IncOrDec::Inc };
-    let dec_v = VarApplier { var: "?V".parse().unwrap(), inc_or_dec: IncOrDec::Dec };
+    let inc_v = VarApplier {
+        var: "?V".parse().unwrap(),
+        inc_or_dec: IncOrDec::Inc,
+    };
+    let dec_v = VarApplier {
+        var: "?V".parse().unwrap(),
+        inc_or_dec: IncOrDec::Dec,
+    };
     vec![
         rewrite!(
             "inc-vars-var";
@@ -254,9 +256,7 @@ mod tests {
         let app22 = egraph.add(App([func2, var2]));
 
         egraph.rebuild();
-        let runner = egg::Runner::default()
-            .with_egraph(egraph)
-            .run(&rules());
+        let runner = egg::Runner::default().with_egraph(egraph).run(&rules());
         let egraph = runner.egraph;
         dbg!(&egraph.dump());
 

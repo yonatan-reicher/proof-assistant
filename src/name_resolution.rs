@@ -75,6 +75,7 @@ mod language_from_op_tests {
     */
 }
 
+#[derive(Debug)]
 struct SymbolMap {
     // This maps each symbol to the number of symbols that existed before it.
     inner: std::collections::HashMap<Symbol, Vec<usize>>,
@@ -106,6 +107,7 @@ impl SymbolMap {
                 if vec.is_empty() {
                     self.inner.remove(symbol);
                 }
+                self.size -= 1;
             }
             None => panic!("Symbol not found in context: {:?}", symbol),
         }

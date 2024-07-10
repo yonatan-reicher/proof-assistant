@@ -169,10 +169,10 @@ fn parse_expr(tokens: &mut Tokens, dest: &mut RecExpr<Expr>) -> ParseResult<Opti
 type Arrow = fn(egg::Symbol, [Id; 2]) -> Expr;
 fn expect_arrow(tokens: &mut Tokens) -> ParseResult<Arrow> {
     if tokens.pop_eq(Symbol::ThinArrow) {
-        return Ok(Expr::Func);
+        return Ok(Expr::FuncType);
     }
     if tokens.pop_eq(Symbol::FatArrow) {
-        return Ok(Expr::FuncType);
+        return Ok(Expr::Func);
     }
     return todo!("Give some error!");
 }
@@ -194,7 +194,7 @@ fn parse_atom(tokens: &mut Tokens, dest: &mut RecExpr<Expr>) -> ParseResult<Opti
     // Because `type` is a keyword, we can't just refer to "type" with a
     // variable expression! Because a user might declare a variable called
     // "type" and then we would return the wrong thing!
-    // TODO: Either make `type` a keyword have a type literal. The latter
+    // TODO: Either make `type` a true keyword or have a type literal. The latter
     // is preferred, I think.
     if tokens.pop_eq(Keyword::Type) {
         return Ok(Some(dest.add(Expr::Var("type".into()))));

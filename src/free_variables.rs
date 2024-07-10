@@ -64,7 +64,7 @@ impl Analysis<Lang> for FreeVariables {
                 left_free.iter().chain(right_free).cloned().collect()
             }
             Lang::Type => vec![],
-            Lang::TypeOf(inner) => egraph[inner].data.clone(),
+            // Lang::TypeOf(inner) => egraph[inner].data.clone(),
         }
     }
 

@@ -4,8 +4,8 @@
 //! 1) Undecidable (Can get into an infinite loop).
 //! 2) The types will be terms.
 
-use crate::name_resolution::{DeBrujin, NameResolved};
 use crate::free_variables::FreeVariables as A; // A for Analysis.
+use crate::name_resolution::{DeBrujin, NameResolved};
 use egg::{Id, RecExpr};
 
 /// Type = Expr = term.

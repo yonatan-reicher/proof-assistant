@@ -33,8 +33,6 @@ define_language! {
         "app" = App([Id; 2]),
         // TODO: Can we remove this?
         "type" = Type,
-        // An operators like the `typeof` in C/C++.
-        "type-of" = TypeOf(Id),
 
     }
 }
@@ -59,16 +57,6 @@ mod language_from_op_tests {
         let var1 = expected.add(NameResolved::Var(1));
         let app = expected.add(NameResolved::App([var0, var1]));
         expected.add(NameResolved::DecreaseVars(app));
-        assert_eq!(parsed, expected);
-    }
-
-    #[test]
-    fn test_parse_type_of() {
-        let parsed: RecExpr<_> = "(type-of (lam 0 0))".parse().unwrap();
-        let mut expected = RecExpr::default();
-        let var0 = expected.add(NameResolved::Var(0));
-        let lam = expected.add(NameResolved::Func([var0, var0]));
-        expected.add(NameResolved::TypeOf(lam));
         assert_eq!(parsed, expected);
     }
 
@@ -202,6 +190,7 @@ fn resolve(
 }
 
 impl NameResolved {
+    // TODO: Instead of returning id, return a new RecExpr.
     pub fn resolve(
         expr: &RecExpr<Expr>,
         root: Id,

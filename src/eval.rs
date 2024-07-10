@@ -1,5 +1,5 @@
 use crate::{free_variables::FreeVariables, name_resolution::NameResolved};
-use egg::{rewrite, Analysis, Applier, EGraph, Id, Rewrite, Subst, Symbol};
+use egg::{rewrite, Analysis, Applier, EGraph, RecExpr, Id, Rewrite, Subst, Symbol};
 
 type Lang = NameResolved;
 
@@ -8,6 +8,18 @@ pub fn rules() -> Vec<Rewrite<Lang, FreeVariables>> {
     v.extend(set0_reduction());
     v.extend(inc_dec_vars_reduction());
     v
+}
+
+pub fn run_and_extract(egraph: &mut EGraph<Lang, FreeVariables>, id: Id) -> RecExpr<NameResolved> {
+    // Run the rules and update egraph.
+    let egraph_moved = std::mem::take(egraph);
+    let mut runner = egg::Runner::default().with_egraph(egraph_moved);
+    runner = runner.run(&rules());
+    *egraph = runner.egraph;
+
+    let extractor = egg::Extractor::new(egraph, egg::AstSize);
+    let (cost, expr) = extractor.find_best(id);
+    expr
 }
 
 #[derive(Debug, Clone, Copy)]

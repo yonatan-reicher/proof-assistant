@@ -3,7 +3,6 @@
 //! AST for the proof assistant.
 
 use egg::{Id, Symbol};
-use std::collections::HashMap;
 
 // TODO: Instead of an egg::Language, this should just use Box<Expr> as children
 // and be a regular syntax tree.
@@ -57,13 +56,13 @@ impl egg::Language for Expr {
 
 // TODO: Read this whole impl from start to finish!
 impl Expr {
+    /*
     /// `matching_names` is a mapping from `other`'s names to `self`'s names.
     fn alpha_equal_by(
         &self,
         other: &Self,
         matching_names: &mut HashMap<Symbol, Vec<Symbol>>,
     ) -> bool {
-        /*
         match (self, other) {
             (Expr::Var(a), Expr::Var(b)) => {
                 // Two variables expressions match if they have the same name
@@ -89,16 +88,16 @@ impl Expr {
             }
             _ => false,
         }
-        */
         todo!()
     }
+    */
 
+    /*
     /// Returns true if"f the two expressions are totally equal, up to
     /// the names of the variables inside functions and function types.
     ///
     /// So, for example, `x => x` and `y => y` are alpha-equal.
     pub fn alpha_equal(&self, other: &Self) -> bool {
-        /*
         match (self, other) {
             (Expr::Var(a), Expr::Var(b)) => a == b,
             (Expr::Func(a, b, c), Expr::Func(x, y, z)) => {
@@ -110,9 +109,9 @@ impl Expr {
             (Expr::App(a, b), Expr::App(x, y)) => a.alpha_equal(x) && b.alpha_equal(y),
             _ => false,
         }
-        */
         todo!()
     }
+    */
 
     /*
     fn expr_to_name_resolved(

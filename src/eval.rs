@@ -228,8 +228,6 @@ pub fn offest_reduction() -> Rewrite<Lang, FreeVariables> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-
     use super::*;
 
     type EGraph = egg::EGraph<NameResolved, FreeVariables>;
@@ -246,9 +244,9 @@ mod tests {
         let func0 = egraph.add(Func([typ, var0]));
         let func1 = egraph.add(Func([typ, var1]));
         let func2 = egraph.add(Func([typ, var2]));
-        let func00 = egraph.add(Func([typ, func0]));
-        let func11 = egraph.add(Func([typ, func1]));
-        let func22 = egraph.add(Func([typ, func2]));
+        let _func00 = egraph.add(Func([typ, func0]));
+        let _func11 = egraph.add(Func([typ, func1]));
+        let _func22 = egraph.add(Func([typ, func2]));
 
         // (x => x) a0
         let app00 = egraph.add(App([func0, var0]));

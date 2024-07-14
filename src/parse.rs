@@ -26,6 +26,7 @@ struct Tokens<'source, 'a> {
     pos: Pos,
 }
 
+#[allow(dead_code)]
 impl<'source, 'a> Tokens<'source, 'a> {
     pub fn new(tokens: &'a [LToken<'source>]) -> Self {
         Self { tokens, pos: 0 }

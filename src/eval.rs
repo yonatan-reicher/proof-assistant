@@ -10,15 +10,17 @@ pub fn rules() -> Vec<Rewrite<Lang, FreeVariables>> {
     v
 }
 
-pub fn run_and_extract(egraph: &mut EGraph<Lang, FreeVariables>, id: Id) -> RecExpr<NameResolved> {
-    // Run the rules and update egraph.
+pub fn run(egraph: &mut EGraph<Lang, FreeVariables>) {
     let egraph_moved = std::mem::take(egraph);
     let mut runner = egg::Runner::default().with_egraph(egraph_moved);
     runner = runner.run(&rules());
     *egraph = runner.egraph;
+}
 
+pub fn run_and_extract(egraph: &mut EGraph<Lang, FreeVariables>, id: Id) -> RecExpr<NameResolved> {
+    run(egraph);
     let extractor = egg::Extractor::new(egraph, egg::AstSize);
-    let (cost, expr) = extractor.find_best(id);
+    let (_cost, expr) = extractor.find_best(id);
     expr
 }
 

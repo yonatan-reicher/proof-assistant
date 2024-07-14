@@ -4,8 +4,8 @@
 //! 1) Undecidable (Can get into an infinite loop).
 //! 2) The types will be terms.
 
-use crate::free_variables::FreeVariables as A; // A for Analysis.
 use crate::name_resolution::{DeBrujin, NameResolved};
+use crate::free_variables::FreeVariables;
 use egg::{Id, RecExpr};
 
 /// Type = Expr = term.
@@ -48,11 +48,21 @@ impl Types {
     }
 }
 
+type EGraph = egg::EGraph<Type, FreeVariables>;
+
 pub struct TypeChecker<'a> {
+    // TODO: Seperate this to two expressions: One for the input expression,
+    // and one for the output types.
     expr: &'a mut Rec,
     types: Types,
     /// An Id that points to an eclass that has `NameResolved::Type`.
     type_literal: Id,
+    /// This EGraph is used for comparing terms which represent types.
+    /// Normally, when checking that two types might be equal, we first need to
+    /// apply beta and eta reductions to get the normalest form of the term.
+    /// Instead, we just chuck it at the egraph and rerun the rules, then we
+    /// can check if the eclasses are equal.
+    egraph: EGraph,
 }
 
 impl<'a> TypeChecker<'a> {
@@ -65,6 +75,7 @@ impl<'a> TypeChecker<'a> {
             expr,
             type_literal,
             types: Types::new(types),
+            egraph: EGraph::default(),
         }
     }
 
@@ -107,10 +118,19 @@ impl<'a> TypeChecker<'a> {
             }
             NameResolved::Set0([expr, subst]) => {
                 let type_of_0 = self.types.get(0);
-                self.typecheck(type_of_0, subst);
+                self.typecheck(type_of_0, subst)?;
                 self.infer(expr)
             }
         }
+    }
+
+    fn are_types_the_same(&mut self, a: &Rec, b: &Rec) -> bool {
+        let a_class = self.egraph.add_expr(a);
+        let b_class = self.egraph.add_expr(b);
+        self.egraph.rebuild();
+        crate::eval::run(&mut self.egraph);
+
+        self.egraph.find(a_class) == self.egraph.find(b_class)
     }
 
     /// Typechecks `root` against `against`.
@@ -120,14 +140,20 @@ impl<'a> TypeChecker<'a> {
     /// finding if the type of `root` *might* be the type in id `against`.
     pub fn typecheck(&mut self, root: Id, against: Id) -> TypeResult<()> {
         let root_type = self.infer(root)?;
-        // TODO: Don't just check if the id's are equal. Must first do evaluation,
-        // and then check if the eclasses of the ids are equal.
-        return if root_type == against {
+        
+        let mut root_type_rec = self.expr.clone();
+        root_type_rec.add(self.expr[root_type]);
+        let mut against_rec = self.expr.clone();
+        against_rec.add(self.expr[against]);
+        let same_type = self.are_types_the_same(&root_type_rec, &against_rec);
+
+        if same_type {
             Ok(())
         } else {
             Err(TypeError::TypeMismatch(root, against))
-        };
+        }
 
+        /*
         match self.expr[root] {
             NameResolved::Var(debrujin) => {
                 let typ = self.types.get(debrujin);
@@ -143,5 +169,6 @@ impl<'a> TypeChecker<'a> {
             NameResolved::DecreaseVars(..) => todo!(),
             NameResolved::Set0(_) => todo!(),
         }
+        */
     }
 }

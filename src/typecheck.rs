@@ -6,17 +6,27 @@
 
 use crate::name_resolution::{DeBrujin, NameResolved};
 use crate::free_variables::FreeVariables;
+use crate::pretty::Pretty;
 use egg::{Id, RecExpr};
+use thiserror::Error;
 
 /// Type = Expr = term.
 type Expr = NameResolved;
 type Type = NameResolved;
 type Rec = RecExpr<NameResolved>;
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Error, Debug, Clone, PartialEq, Hash)]
 pub enum TypeError {
-    TypeMismatch(Id, Id),
+    #[error("Type mismatch: {expression} has type {had_type}, but expected {expected_type}")]
+    TypeMismatch {
+        expression: Pretty<Rec>,
+        had_type: Pretty<Rec>,
+        expected_type: Pretty<Rec>,
+    },
+    // TODO: Use pretty printing for these errors.
+    #[error("Type {0} is not a function type")]
     NotAFunctionType(Id),
+    #[error("Type {0} is not a type")]
     ParameterTypeAnnotationIsNotAType(Id),
 }
 
@@ -159,7 +169,12 @@ impl<'a> TypeChecker<'a> {
         if same_type {
             Ok(())
         } else {
-            Err(TypeError::TypeMismatch(root, against))
+            Err(TypeError::TypeMismatch {
+                expression: Pretty::new(self.expr.clone(), root),
+                had_type: Pretty::new(root_type_rec, root_type),
+                //had_type: root_type_rec,
+                expected_type: Pretty::new(against_rec, against),
+            })
         }
 
         /*

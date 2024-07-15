@@ -66,6 +66,15 @@ pub struct TypeChecker<'a> {
 }
 
 impl<'a> TypeChecker<'a> {
+    fn initial_egraph() -> EGraph {
+        let mut egraph = EGraph::default();
+        let typ = egraph.add(NameResolved::Type);
+        let var0 = egraph.add(NameResolved::Var(0));
+        egraph.union(typ, var0);
+        egraph.rebuild();
+        egraph
+    }
+
     pub fn new(
         expr: &'a mut Rec,
         types: impl IntoIterator<Item = Id>,
@@ -75,7 +84,7 @@ impl<'a> TypeChecker<'a> {
             expr,
             type_literal,
             types: Types::new(types),
-            egraph: EGraph::default(),
+            egraph: Self::initial_egraph(),
         }
     }
 

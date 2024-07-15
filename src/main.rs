@@ -32,14 +32,15 @@ fn run_str(input: &str) {
         &mut name_resolved_ast,
         [ type_literal ],
     );
-    let typ = typechecker.infer(root).unwrap();
+    let typ = typechecker.infer(root).unwrap_or_else(|e| {
+        panic!("Type error: {}", e);
+    });
     println!("Type: {}", Pretty::new(&name_resolved_ast, typ));
 
     let mut egraph = egg::EGraph::<NameResolved, FreeVariables>::default();
     // If we were just adding the name-resolved ast, we would get the id of the
     // wrong node. We add our root node again so egg treats it as the root.
     name_resolved_ast.add(name_resolved_ast[root]);
-    println!("full expr: {:#?}", name_resolved_ast);
     let root = egraph.add_expr(&name_resolved_ast);
     egraph.rebuild();
 
@@ -47,7 +48,8 @@ fn run_str(input: &str) {
     let root = get_root(&expr);
 
     println!("Evaluated: {}", Pretty::new(&expr, root));
-    println!("Graph: {:#?}", egraph);
+    println!("Graph: ");
+    println!("{:#?}", egraph.dump());
 }
 
 fn run_cli_argument() {

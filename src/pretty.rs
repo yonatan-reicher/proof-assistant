@@ -2,7 +2,8 @@
 
 use crate::name_resolution::{DeBrujin, NameResolved};
 use egg::{Id, RecExpr};
-use std::fmt::{self, Display, Formatter, Write};
+use std::borrow::Borrow;
+use std::fmt::{self, Debug, Display, Formatter, Write};
 
 type Rec = RecExpr<NameResolved>;
 
@@ -47,14 +48,15 @@ fn pretty_atom<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: usize) {
     }
 }
 
-pub struct Pretty<'a> {
-    expr: &'a Rec,
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Pretty<RecRef> where RecRef: Borrow<Rec> {
+    expr: RecRef,
     root: Id,
     depth: usize,
 }
 
-impl<'a> Pretty<'a> {
-    pub fn new(expr: &'a Rec, root: Id) -> Self {
+impl<RecRef: Borrow<Rec>> Pretty<RecRef> {
+    pub fn new(expr: RecRef, root: Id) -> Self {
         Self {
             expr,
             root,
@@ -63,9 +65,15 @@ impl<'a> Pretty<'a> {
     }
 }
 
-impl Display for Pretty<'_> {
+impl<R: Borrow<Rec>> Debug for Pretty<R> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        pretty(self.expr, self.root, f, self.depth);
+        write!(f, "Pretty{}", self)
+    }
+}
+
+impl<R: Borrow<Rec>> Display for Pretty<R> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        pretty_atom(self.expr.borrow(), self.root, f, self.depth);
         Ok(())
     }
 }

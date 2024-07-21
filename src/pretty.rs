@@ -11,6 +11,9 @@ fn var_name_from_depth(depth: isize) -> String {
     let mut iter = 'a'..='z';
     let size = iter.clone().count();
     // TODO: Do something about all these conversions.
+    if depth < 0 {
+        return var_name_from_depth(-depth - 1).to_uppercase();
+    }
     if depth < size as _ {
         iter.nth(depth as _).unwrap().to_string()
     } else {
@@ -18,9 +21,10 @@ fn var_name_from_depth(depth: isize) -> String {
     }
 }
 
-fn var_depth(depth: usize, index: DeBrujin) -> isize {
+fn var_depth(depth: isize, index: DeBrujin) -> isize {
     // depth - index but we need to convert to isize.
-    depth.abs_diff(index) as isize * (if depth < index { -1 } else { 1 })
+    depth - (index as isize)
+    // depth.abs_diff(index) as isize * (if depth < index { -1 } else { 1 })
 }
 
 fn needs_parenthesis(expr: &NameResolved) -> bool {
@@ -37,7 +41,7 @@ fn needs_parenthesis(expr: &NameResolved) -> bool {
     }
 }
 
-fn pretty_atom<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: usize) {
+fn pretty_atom<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: isize) {
     let node = &expr[root];
     if needs_parenthesis(node) {
         write!(out, "(").unwrap();
@@ -52,7 +56,8 @@ fn pretty_atom<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: usize) {
 pub struct Pretty<RecRef> where RecRef: Borrow<Rec> {
     expr: RecRef,
     root: Id,
-    depth: usize,
+    depth: isize,
+    as_atom: bool,
 }
 
 impl<RecRef: Borrow<Rec>> Pretty<RecRef> {
@@ -61,13 +66,23 @@ impl<RecRef: Borrow<Rec>> Pretty<RecRef> {
             expr,
             root,
             depth: 0,
+            as_atom: true,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_as_atom(mut self, as_atom: bool) -> Self {
+        self.as_atom = as_atom;
+        self
     }
 }
 
 impl<R: Borrow<Rec>> Debug for Pretty<R> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Pretty{}", self)
+        write!(f, "Pretty(")?;
+        pretty(self.expr.borrow(), self.root, f, self.depth);
+        write!(f, ")")?;
+        Ok(())
     }
 }
 
@@ -78,7 +93,7 @@ impl<R: Borrow<Rec>> Display for Pretty<R> {
     }
 }
 
-fn pretty<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: usize) {
+fn pretty<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: isize) {
     use NameResolved as NR;
     let node = &expr[root];
     match node {
@@ -105,7 +120,9 @@ fn pretty<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: usize) {
             pretty_atom(expr, *arg, out, depth);
         }
         NR::Type => write!(out, "type").unwrap(),
-        NR::IncreaseVars(_) => todo!(),
+        NR::IncreaseVars(x) => {
+            pretty(expr, *x, out, depth - 1);
+        }
         NR::DecreaseVars(_) => todo!(),
         NR::Set0(_) => todo!(),
     }
@@ -125,7 +142,7 @@ mod tests {
         let var1 = expr.add(NR::Var(1));
         let root = expr.add(NR::Func([var0, var1]));
         let pretty = Pretty::new(&expr, root).to_string();
-        assert_eq!(pretty, "b: a => a");
+        assert_eq!(pretty, "(b: a => a)");
     }
 
     fn parse_and_pretty(str: &'static str) -> String {
@@ -137,8 +154,7 @@ mod tests {
         let root = Id::from(expr.as_ref().len() - 1);
         let mut name_resolved = RecExpr::default();
         let root = NameResolved::resolve(&expr, root, &["type"], &mut name_resolved).unwrap();
-        let pretty = Pretty::new(&name_resolved, root).to_string();
-        pretty
+        Pretty::new(&name_resolved, root).to_string()
     }
 
     #[test]
@@ -154,7 +170,7 @@ mod tests {
             (x: (y: type -> type) => x) (a : type => type)
         ");
         let actual = "
-            (b: (b: a -> a) => b) (b: a => a)
+            ((b: (b: a -> a) => b) (b: a => a))
         ";
         // Var 0 is displayed as 'a'.
         assert_eq!(pretty.trim(), actual.trim());

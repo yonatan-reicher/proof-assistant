@@ -4,8 +4,8 @@
 //! 1) Undecidable (Can get into an infinite loop).
 //! 2) The types will be terms.
 
-use crate::name_resolution::{DeBrujin, NameResolved};
 use crate::free_variables::FreeVariables;
+use crate::name_resolution::{DeBrujin, NameResolved};
 use crate::pretty::Pretty;
 use egg::{Id, RecExpr};
 use thiserror::Error;
@@ -25,7 +25,7 @@ pub enum TypeError {
     },
     // TODO: Use pretty printing for these errors.
     #[error("Type {0} is not a function type")]
-    NotAFunctionType(Id),
+    NotAFunctionType(Pretty<Rec>),
     #[error("Type {0} is not a type")]
     ParameterTypeAnnotationIsNotAType(Id),
 }
@@ -45,8 +45,18 @@ impl Types {
         }
     }
 
-    pub fn get(&self, debrujin: DeBrujin) -> Id {
-        self.type_stack.iter().rev().nth(debrujin).copied().unwrap()
+    pub fn get(&self, debrujin: DeBrujin, egraph: &mut Rec) -> Id {
+        // TODO: This is wrong. Because the type of this variable was created in a context where
+        // there was at least one less variables. It needs to be adjusted.
+        // self.type_stack.iter().rev().nth(debrujin).copied().unwrap()
+        // FIX: Trying to fix it right now.
+        let x = self.type_stack.iter().rev().nth(debrujin).copied().unwrap();
+        
+        let mut curr = x;
+        for _ in 0..=debrujin {
+            curr = egraph.add(NameResolved::IncreaseVars(curr));
+        }
+        curr
     }
 
     pub fn push(&mut self, typ: Id) {
@@ -85,10 +95,7 @@ impl<'a> TypeChecker<'a> {
         egraph
     }
 
-    pub fn new(
-        expr: &'a mut Rec,
-        types: impl IntoIterator<Item = Id>,
-    ) -> TypeChecker {
+    pub fn new(expr: &'a mut Rec, types: impl IntoIterator<Item = Id>) -> TypeChecker {
         let type_literal = expr.add(NameResolved::Type);
         Self {
             expr,
@@ -107,7 +114,7 @@ impl<'a> TypeChecker<'a> {
             }
             NameResolved::IncreaseVars(..) => todo!(),
             NameResolved::DecreaseVars(..) => todo!(),
-            NameResolved::Var(debrujin) => Ok(self.types.get(debrujin)),
+            NameResolved::Var(debrujin) => Ok(self.types.get(debrujin, &mut self.expr)),
             NameResolved::Func([param_type, ret]) => {
                 // TODO: Maybe support doing something like:
                 // self.typecheck(...).map_err(hint("This must be a type"))?;
@@ -130,13 +137,14 @@ impl<'a> TypeChecker<'a> {
                 let func_type_id = self.infer(func)?;
                 let func_type = &self.expr[func_type_id];
                 let &NameResolved::FuncType([param_type, ret_type]) = func_type else {
-                    todo!();
+                    return Err(TypeError::NotAFunctionType(Pretty::new(self.expr.clone(), func_type_id)));
                 };
                 self.typecheck(arg, param_type)?;
+                // TODO: This is wrong. Because ret_type was created in a context where there was one more variable. So we need to set it's 0th variable and decrease it's vars.
                 Ok(ret_type)
             }
             NameResolved::Set0([expr, subst]) => {
-                let type_of_0 = self.types.get(0);
+                let type_of_0 = self.types.get(0, &mut self.expr);
                 self.typecheck(type_of_0, subst)?;
                 self.infer(expr)
             }
@@ -159,7 +167,7 @@ impl<'a> TypeChecker<'a> {
     /// finding if the type of `root` *might* be the type in id `against`.
     pub fn typecheck(&mut self, root: Id, against: Id) -> TypeResult<()> {
         let root_type = self.infer(root)?;
-        
+
         let mut root_type_rec = self.expr.clone();
         root_type_rec.add(self.expr[root_type]);
         let mut against_rec = self.expr.clone();

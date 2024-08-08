@@ -36,8 +36,9 @@ fn needs_parenthesis(expr: &NameResolved) -> bool {
         NR::App(_) => true,
         NR::Type => false,
         NR::IncreaseVars(_) => true,
-        NR::DecreaseVars(_) => true,
-        NR::Set0(_) => true,
+        // NR::DecreaseVars(_) => true,
+        // NR::Set0(_) => true,
+        NR::Let(_) => true,
     }
 }
 
@@ -96,6 +97,10 @@ impl<R: Borrow<Rec>> Display for Pretty<R> {
 fn pretty<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: isize) {
     use NameResolved as NR;
     let node = &expr[root];
+    let expect_var = |id: Id| match expr[id] {
+        NR::Var(var) => var,
+        _ => panic!("Expected a Var, found {:?}", expr[id]),
+    };
     match node {
         NR::Var(index) => {
             let name = var_name_from_depth(var_depth(depth, *index));
@@ -120,11 +125,23 @@ fn pretty<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: isize) {
             pretty_atom(expr, *arg, out, depth);
         }
         NR::Type => write!(out, "type").unwrap(),
-        NR::IncreaseVars(x) => {
+        NR::IncreaseVars([var, x]) => {
             pretty(expr, *x, out, depth - 1);
         }
-        NR::DecreaseVars(_) => todo!(),
-        NR::Set0(_) => todo!(),
+        &NR::Let([var, value, expr]) => {
+            todo!()
+            /*
+            // let {var} = {value} in {expr}
+            let var = expect_var(var);
+            let var_name = var_name_from_depth(var_depth(depth, var));
+            write!(out, "let {} = ", var_name).unwrap();
+            pretty_atom(expr, *value, out, depth);
+            write!(out, " in ").unwrap();
+            pretty(expr, *expr, out, depth);
+            */
+        }
+        // NR::DecreaseVars(_) => todo!(),
+        // NR::Set0(_) => todo!(),
     }
 }
 
@@ -174,5 +191,16 @@ mod tests {
         ";
         // Var 0 is displayed as 'a'.
         assert_eq!(pretty.trim(), actual.trim());
+    }
+
+    #[test]
+    fn with_and_without_var() {
+        let pretty_a = parse_and_pretty("
+            (type -> type) -> type
+        ");
+        let pretty_b = parse_and_pretty("
+            aa: (a: type -> type) -> type
+        ");
+        assert_eq!(pretty_a, pretty_b);
     }
 }

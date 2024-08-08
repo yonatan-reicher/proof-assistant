@@ -12,20 +12,26 @@ define_language! {
     pub enum NameResolved {
         // A variable like the `x` in `x + 1`.
         Var(DeBrujin),
-        // Adds 1 to every D"B index of every variable.
-        "inc-vars" = IncreaseVars(Id),
+        // Adds 1 to every index of every variable expression, if it is above
+        // *or equal to* some variable (the first parameter).
+         "inc-vars" = IncreaseVars([Id; 2]),
         // Takes 1 away from every D"B index of every variable.
         // For 0 variables, does not do anything.
         // But DecreaseVars and IncreaseVars cancel each other out.
-        "dec-vars" = DecreaseVars(Id),
+        // "dec-vars" = DecreaseVars(Id),
         // Replaces the variable at 0 of this expression.
         // The second Id is the argument for the first one.
-        "set0" = Set0([Id; 2]),
+        // "set0" = Set0([Id; 2]),
         // A function. Written `x: t => y`
         "lam" = Func([Id; 2]),
         // A function `x: t -> y`.
         // Sometimes written `t -> y`.
         "pi" = FuncType([Id; 2]),
+        // A variable declaration and use. In (let v e b) v MUST be a variable.
+        // That variable is going to be *replaced* in b by e, and all the rest
+        // of the variables expressions are going to be shifted accordingly
+        // (down by 1 if they were with a bigger index).
+        "let" = Let([Id; 3]),
         // An application expression is of the form
         // `func arg`. It is left-associative so
         // `func arg1 arg2` is the same as
@@ -33,7 +39,6 @@ define_language! {
         "app" = App([Id; 2]),
         // TODO: Can we remove this?
         "type" = Type,
-
     }
 }
 
@@ -51,12 +56,14 @@ mod language_from_op_tests {
 
     #[test]
     fn test_parse_offset() {
-        let parsed: RecExpr<_> = "(dec-vars (app 0 1))".parse().unwrap();
+        let parsed: RecExpr<_> = "(inc-vars 0 (app 0 1))".parse().unwrap();
         let mut expected = RecExpr::default();
         let var0 = expected.add(NameResolved::Var(0));
+        // Adding twice because for some reason that's what parse returns.
+        let var0_ = expected.add(NameResolved::Var(0));
         let var1 = expected.add(NameResolved::Var(1));
-        let app = expected.add(NameResolved::App([var0, var1]));
-        expected.add(NameResolved::DecreaseVars(app));
+        let app = expected.add(NameResolved::App([var0_, var1]));
+        expected.add(NameResolved::IncreaseVars([var0, app]));
         assert_eq!(parsed, expected);
     }
 

@@ -4,7 +4,7 @@
 //! 1) Undecidable (Can get into an infinite loop).
 //! 2) The types will be terms.
 
-use crate::free_variables::FreeVariables;
+use crate::analysis::Analysis;
 use crate::name_resolution::{DeBrujin, NameResolved};
 use crate::pretty::Pretty;
 use egg::{Id, RecExpr};
@@ -51,10 +51,11 @@ impl Types {
         // self.type_stack.iter().rev().nth(debrujin).copied().unwrap()
         // FIX: Trying to fix it right now.
         let x = self.type_stack.iter().rev().nth(debrujin).copied().unwrap();
-        
+        let var0 = egraph.add(NameResolved::Var(0));
+
         let mut curr = x;
         for _ in 0..=debrujin {
-            curr = egraph.add(NameResolved::IncreaseVars(curr));
+            curr = egraph.add(NameResolved::IncreaseVars([var0, curr]));
         }
         curr
     }
@@ -68,7 +69,7 @@ impl Types {
     }
 }
 
-type EGraph = egg::EGraph<Type, FreeVariables>;
+type EGraph = egg::EGraph<Type, Analysis>;
 
 pub struct TypeChecker<'a> {
     // TODO: Seperate this to two expressions: One for the input expression,
@@ -113,8 +114,8 @@ impl<'a> TypeChecker<'a> {
                 Ok(root)
             }
             NameResolved::IncreaseVars(..) => todo!(),
-            NameResolved::DecreaseVars(..) => todo!(),
-            NameResolved::Var(debrujin) => Ok(self.types.get(debrujin, &mut self.expr)),
+            //NameResolved::DecreaseVars(..) => todo!(),
+            NameResolved::Var(debrujin) => Ok(self.types.get(debrujin, self.expr)),
             NameResolved::Func([param_type, ret]) => {
                 // TODO: Maybe support doing something like:
                 // self.typecheck(...).map_err(hint("This must be a type"))?;
@@ -136,19 +137,48 @@ impl<'a> TypeChecker<'a> {
                 // TODO: Do both, and return whichever one works.
                 let func_type_id = self.infer(func)?;
                 let func_type = &self.expr[func_type_id];
-                let &NameResolved::FuncType([param_type, ret_type]) = func_type else {
-                    return Err(TypeError::NotAFunctionType(Pretty::new(self.expr.clone(), func_type_id)));
+                let Some((param_type, ret_type)) = ({
+                    // We want to use the egraph to simplify func_type and check
+                    // if it is a function type.
+                    let mut rec = self.expr.clone();
+                    rec.add(*func_type);
+                    self.is_type_function_type(&rec)
+                }) else {
+                    return Err(TypeError::NotAFunctionType(Pretty::new(
+                        self.expr.clone(),
+                        func_type_id,
+                    )));
                 };
                 self.typecheck(arg, param_type)?;
-                // TODO: This is wrong. Because ret_type was created in a context where there was one more variable. So we need to set it's 0th variable and decrease it's vars.
+                // TODO: This is wrong. Because ret_type was created in a
+                // context where there was one more variable. So we need to set
+                // it's 0th variable and decrease it's vars.
                 Ok(ret_type)
             }
+            NameResolved::Let([var, value, expr]) => {
+                todo!()
+            }
+            /*
             NameResolved::Set0([expr, subst]) => {
-                let type_of_0 = self.types.get(0, &mut self.expr);
+                let type_of_0 = self.types.get(0, self.expr);
                 self.typecheck(type_of_0, subst)?;
                 self.infer(expr)
             }
+            */
         }
+    }
+
+    fn is_type_function_type(&mut self, a: &Rec) -> Option<(Id, Id)> {
+        let a_class = self.egraph.add_expr(a);
+        self.egraph.rebuild();
+        crate::eval::run(&mut self.egraph);
+
+        dbg!(&self.egraph);
+        dbg!(&self.egraph[a_class]);
+        dbg!(&self.egraph[self.egraph.find(a_class)]
+            .data)
+            .is_function_type
+            .map(|func_type_info| (func_type_info.arg_type, func_type_info.ret_type))
     }
 
     fn are_types_the_same(&mut self, a: &Rec, b: &Rec) -> bool {

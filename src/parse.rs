@@ -147,9 +147,20 @@ fn parse_expr(tokens: &mut Tokens, dest: &mut RecExpr<Expr>) -> ParseResult<Opti
         return Ok(None);
     };
 
+    // Exampl: A -> B
+    if tokens.pop_eq(Symbol::ThinArrow) {
+        let ty = first;
+        let Some(rhs) = parse_expr(tokens, dest)? else {
+            return Err(todo!());
+        };
+        let no_name: egg::Symbol = "$".into();
+        return Ok(Some(dest.add(Expr::FuncType(no_name, [ty, rhs]))));
+    }
+
+    // Examples: x: A -> B, x: A => B
     if tokens.pop_eq(Symbol::Colon) {
         // TODO: Should this next line be `parse_expr` or `parse_atom`?
-        let Some(ty) = parse_expr(tokens, dest)? else {
+        let Some(ty) = parse_application(tokens, dest)? else {
             return Err(todo!());
         };
         let arrow = expect_arrow(tokens)?;
@@ -160,6 +171,11 @@ fn parse_expr(tokens: &mut Tokens, dest: &mut RecExpr<Expr>) -> ParseResult<Opti
         return Ok(Some(dest.add(arrow(first, [ty, rhs]))));
     }
 
+    parse_application_cont(tokens, first, dest)
+}
+
+fn parse_application_cont(tokens: &mut Tokens, first: Id, dest: &mut RecExpr<Expr>) -> ParseResult<Option<Id>> {
+    // Example: f x y
     let mut ret = first;
     while let Some(next_term) = parse_atom(tokens, dest)? {
         ret = dest.add(Expr::App([ret, next_term]));
@@ -167,7 +183,17 @@ fn parse_expr(tokens: &mut Tokens, dest: &mut RecExpr<Expr>) -> ParseResult<Opti
     Ok(Some(ret))
 }
 
+fn parse_application(tokens: &mut Tokens, dest: &mut RecExpr<Expr>) -> ParseResult<Option<Id>> {
+    let Some(first) = parse_atom(tokens, dest)? else {
+        return Ok(None);
+    };
+
+    parse_application_cont(tokens, first, dest)
+}
+
+
 type Arrow = fn(egg::Symbol, [Id; 2]) -> Expr;
+
 fn expect_arrow(tokens: &mut Tokens) -> ParseResult<Arrow> {
     if tokens.pop_eq(Symbol::ThinArrow) {
         return Ok(Expr::FuncType);

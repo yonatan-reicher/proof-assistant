@@ -1,13 +1,14 @@
 mod ast;
 mod pretty;
 mod eval;
-mod free_variables;
+mod is_function_type;
+mod analysis;
 mod lex;
 mod name_resolution;
 mod parse;
 mod typecheck;
 
-use free_variables::FreeVariables;
+use analysis::Analysis;
 use name_resolution::NameResolved;
 use pretty::Pretty;
 
@@ -37,7 +38,7 @@ fn run_str(input: &str) {
     });
     println!("Type: {}", Pretty::new(&name_resolved_ast, typ));
 
-    let mut egraph = egg::EGraph::<NameResolved, FreeVariables>::default();
+    let mut egraph = egg::EGraph::<NameResolved, Analysis>::default();
     // If we were just adding the name-resolved ast, we would get the id of the
     // wrong node. We add our root node again so egg treats it as the root.
     name_resolved_ast.add(name_resolved_ast[root]);

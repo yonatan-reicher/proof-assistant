@@ -45,17 +45,13 @@ impl Types {
         }
     }
 
-    pub fn get(&self, debrujin: DeBrujin, egraph: &mut Rec) -> Id {
-        // TODO: This is wrong. Because the type of this variable was created in a context where
-        // there was at least one less variables. It needs to be adjusted.
-        // self.type_stack.iter().rev().nth(debrujin).copied().unwrap()
-        // FIX: Trying to fix it right now.
+    pub fn get(&self, debrujin: DeBrujin, expr: &mut Rec) -> Id {
         let x = self.type_stack.iter().rev().nth(debrujin).copied().unwrap();
-        let var0 = egraph.add(NameResolved::Var(0));
+        let var0 = expr.add(NameResolved::Var(0));
 
         let mut curr = x;
         for _ in 0..=debrujin {
-            curr = egraph.add(NameResolved::IncreaseVars([var0, curr]));
+            curr = expr.add(NameResolved::IncreaseVars([var0, curr]));
         }
         curr
     }

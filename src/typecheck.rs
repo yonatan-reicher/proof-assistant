@@ -85,10 +85,7 @@ pub struct TypeChecker<'a> {
 impl<'a> TypeChecker<'a> {
     fn initial_egraph() -> EGraph {
         let mut egraph = EGraph::default();
-        let typ = egraph.add(NameResolved::Type);
-        let var0 = egraph.add(NameResolved::Var(0));
-        egraph.union(typ, var0);
-        egraph.rebuild();
+        egraph.add(NameResolved::Type);
         egraph
     }
 
@@ -163,9 +160,18 @@ impl<'a> TypeChecker<'a> {
             */
         }
     }
+    
+    fn set_var0_to_type(&mut self, e: &Rec) -> Rec {
+        let mut e = e.clone();
+        let var0 = self.egraph.add(NameResolved::Var(0));
+        let root = Id::from(e.as_ref().len() - 1);
+        e.add(NameResolved::Let([var0, self.type_literal, root]));
+        e
+    }
 
     fn is_type_function_type(&mut self, a: &Rec) -> Option<(Id, Id)> {
-        let a_class = self.egraph.add_expr(a);
+        let a = self.set_var0_to_type(a);
+        let a_class = self.egraph.add_expr(&a);
         self.egraph.rebuild();
         crate::eval::run(&mut self.egraph);
 
@@ -178,8 +184,10 @@ impl<'a> TypeChecker<'a> {
     }
 
     fn are_types_the_same(&mut self, a: &Rec, b: &Rec) -> bool {
-        let a_class = self.egraph.add_expr(a);
-        let b_class = self.egraph.add_expr(b);
+        let a = self.set_var0_to_type(a);
+        let b = self.set_var0_to_type(b);
+        let a_class = self.egraph.add_expr(&a);
+        let b_class = self.egraph.add_expr(&b);
         self.egraph.rebuild();
         crate::eval::run(&mut self.egraph);
 

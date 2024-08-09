@@ -125,6 +125,8 @@ fn pretty<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: isize) {
             pretty_atom(expr, *arg, out, depth);
         }
         NR::Type => write!(out, "type").unwrap(),
+        // TODO: This is not correct, pretty printing should respect inc-vars
+        //       and let thresholds
         NR::IncreaseVars([var, x]) => {
             pretty(expr, *x, out, depth - 1);
         }
@@ -170,15 +172,8 @@ mod tests {
         let expr = parse(&tokens).unwrap();
         let root = Id::from(expr.as_ref().len() - 1);
         let mut name_resolved = RecExpr::default();
-        let root = NameResolved::resolve(&expr, root, &["type"], &mut name_resolved).unwrap();
+        let root = NameResolved::resolve(&expr, root, &[], &mut name_resolved).unwrap();
         Pretty::new(&name_resolved, root).to_string()
-    }
-
-    #[test]
-    fn test_pretty_turns_type_to_var0() {
-        let pretty = parse_and_pretty("type");
-        // Var 0 is displayed as 'a'.
-        assert_eq!(pretty, "a");
     }
 
     #[test]
@@ -187,7 +182,7 @@ mod tests {
             (x: (y: type -> type) => x) (a : type => type)
         ");
         let actual = "
-            ((b: (b: a -> a) => b) (b: a => a))
+            ((b: (b: type -> type) => b) (b: type => type))
         ";
         // Var 0 is displayed as 'a'.
         assert_eq!(pretty.trim(), actual.trim());

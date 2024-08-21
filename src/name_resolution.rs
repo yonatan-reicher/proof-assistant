@@ -195,6 +195,9 @@ fn resolve(
             let arg = resolve(expr, *arg, context, dest)?;
             Ok(dest.add(NameResolved::App([func, arg])))
         }
+        Expr::Type => {
+            Ok(dest.add(NameResolved::Type))
+        }
     }
 }
 

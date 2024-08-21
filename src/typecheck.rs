@@ -6,7 +6,7 @@
 
 use crate::analysis::Analysis;
 use crate::name_resolution::{DeBrujin, NameResolved};
-use crate::pretty::Pretty;
+use crate::pretty::PrettyPrintOwned;
 use egg::{Id, RecExpr};
 use thiserror::Error;
 
@@ -15,17 +15,16 @@ type Expr = NameResolved;
 type Type = NameResolved;
 type Rec = RecExpr<NameResolved>;
 
-#[derive(Error, Debug, Clone, PartialEq, Hash)]
+#[derive(Error, Debug, Clone)]
 pub enum TypeError {
     #[error("Type mismatch: {expression} has type {had_type}, but expected {expected_type}")]
     TypeMismatch {
-        expression: Pretty<Rec>,
-        had_type: Pretty<Rec>,
-        expected_type: Pretty<Rec>,
+        expression: PrettyPrintOwned,
+        had_type: PrettyPrintOwned,
+        expected_type: PrettyPrintOwned,
     },
-    // TODO: Use pretty printing for these errors.
     #[error("Type {0} is not a function type")]
-    NotAFunctionType(Pretty<Rec>),
+    NotAFunctionType(PrettyPrintOwned),
     #[error("Type {0} is not a type")]
     ParameterTypeAnnotationIsNotAType(Id),
 }
@@ -84,12 +83,7 @@ pub struct TypeChecker<'a> {
 
 impl<'a> TypeChecker<'a> {
     fn initial_egraph() -> EGraph {
-        let mut egraph = EGraph::default();
-        let typ = egraph.add(NameResolved::Type);
-        let var0 = egraph.add(NameResolved::Var(0));
-        egraph.union(typ, var0);
-        egraph.rebuild();
-        egraph
+        EGraph::default()
     }
 
     pub fn new(expr: &'a mut Rec, types: impl IntoIterator<Item = Id>) -> TypeChecker {
@@ -140,9 +134,10 @@ impl<'a> TypeChecker<'a> {
                     rec.add(*func_type);
                     self.is_type_function_type(&rec)
                 }) else {
-                    return Err(TypeError::NotAFunctionType(Pretty::new(
+                    return Err(TypeError::NotAFunctionType(PrettyPrintOwned::new(
                         self.expr.clone(),
                         func_type_id,
+                        true,
                     )));
                 };
                 self.typecheck(arg, param_type)?;
@@ -163,7 +158,7 @@ impl<'a> TypeChecker<'a> {
             */
         }
     }
-
+    
     fn is_type_function_type(&mut self, a: &Rec) -> Option<(Id, Id)> {
         let a_class = self.egraph.add_expr(a);
         self.egraph.rebuild();
@@ -204,10 +199,10 @@ impl<'a> TypeChecker<'a> {
             Ok(())
         } else {
             Err(TypeError::TypeMismatch {
-                expression: Pretty::new(self.expr.clone(), root),
-                had_type: Pretty::new(root_type_rec, root_type),
+                expression: PrettyPrintOwned::new(self.expr.clone(), root, true),
+                had_type: PrettyPrintOwned::new(root_type_rec, root_type, true),
                 //had_type: root_type_rec,
-                expected_type: Pretty::new(against_rec, against),
+                expected_type: PrettyPrintOwned::new(against_rec, against, true),
             })
         }
 

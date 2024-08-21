@@ -11,7 +11,7 @@ mod typecheck;
 
 use analysis::Analysis;
 use name_resolution::NameResolved;
-use pretty::Pretty;
+use pretty::PrettyPrint;
 
 use egg::{self, Id, RecExpr};
 use std::{env::args, fs, io, path::PathBuf};
@@ -31,7 +31,7 @@ fn run_str(input: &str) {
         NameResolved::resolve(&ast, get_root(&ast), &["type"], &mut name_resolved_ast).unwrap();
     println!(
         "Name Resolved Ast: {}",
-        Pretty::new(&name_resolved_ast, root)
+       name_resolved_ast.pretty_print_at(root)
     );
 
     let type_literal = name_resolved_ast.add(NameResolved::Type);
@@ -39,7 +39,7 @@ fn run_str(input: &str) {
     let typ = typechecker.infer(root).unwrap_or_else(|e| {
         panic!("Type error: {}", e);
     });
-    println!("Type: {}", Pretty::new(&name_resolved_ast, typ));
+    println!("Type: {}", name_resolved_ast.pretty_print_at(typ));
 
     let mut egraph = egg::EGraph::<NameResolved, Analysis>::default();
     // If we were just adding the name-resolved ast, we would get the id of the
@@ -49,9 +49,8 @@ fn run_str(input: &str) {
     egraph.rebuild();
 
     let expr = eval::run_and_extract(&mut egraph, root);
-    let root = get_root(&expr);
 
-    println!("Evaluated: {}", Pretty::new(&expr, root));
+    println!("Evaluated: {}", expr.pretty_print());
     println!("Graph: ");
     println!("{:#?}", egraph.dump());
 }

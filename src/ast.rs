@@ -20,6 +20,8 @@ pub enum Expr {
     /// `func arg1 arg2` is the same as
     /// `(func arg1) arg2`
     App([Id; 2]),
+    /// The `type` literal
+    Type,
 }
 
 impl egg::Language for Expr {
@@ -36,7 +38,7 @@ impl egg::Language for Expr {
 
     fn children(&self) -> &[Id] {
         match self {
-            Expr::Var(_) => &[],
+            Expr::Var(_) | Expr::Type => &[],
             Expr::Func(_, children) => children,
             Expr::FuncType(_, children) => children,
             Expr::App(children) => children,
@@ -45,7 +47,7 @@ impl egg::Language for Expr {
 
     fn children_mut(&mut self) -> &mut [Id] {
         match self {
-            Expr::Var(_) => &mut [],
+            Expr::Var(_) | Expr::Type => &mut [],
             Expr::Func(_, children) => children,
             Expr::FuncType(_, children) => children,
             Expr::App(children) => children,

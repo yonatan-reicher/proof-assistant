@@ -1,149 +1,230 @@
 //! This module is all about the pretty printing name resolved expressions!
+//!
+//! This module exposes the `PrettyPrinter` type, and the `PrettyPrint` trait to create it from egg
+//! expressions.
 
 use crate::name_resolution::{DeBrujin, NameResolved};
 use egg::{Id, RecExpr};
-use std::borrow::Borrow;
-use std::fmt::{self, Debug, Display, Formatter, Write};
+use std::fmt::{self, Debug, Display, Formatter};
 
 type Rec = RecExpr<NameResolved>;
 
-fn var_name_from_depth(depth: isize) -> String {
-    let mut iter = 'a'..='z';
-    let size = iter.clone().count();
-    // TODO: Do something about all these conversions.
-    if depth < 0 {
-        return var_name_from_depth(-depth - 1).to_uppercase();
-    }
-    if depth < size as _ {
-        iter.nth(depth as _).unwrap().to_string()
-    } else {
-        var_name_from_depth(depth - size as isize) + "'"
-    }
+pub trait PrettyPrint: Sized {
+    fn pretty_print(&self) -> PrettyPrinter;
+
+    fn pretty_print_at(&self, root: Id) -> PrettyPrinter;
 }
 
-fn var_depth(depth: isize, index: DeBrujin) -> isize {
-    // depth - index but we need to convert to isize.
-    depth - (index as isize)
-    // depth.abs_diff(index) as isize * (if depth < index { -1 } else { 1 })
-}
+impl PrettyPrint for Rec {
+    fn pretty_print(&self) -> PrettyPrinter {
+        let root = Id::from(self.as_ref().len() - 1);
+        self.pretty_print_at(root)
+    }
 
-fn needs_parenthesis(expr: &NameResolved) -> bool {
-    use NameResolved as NR;
-    match expr {
-        NR::Var(_) => false,
-        NR::Func(_) => true,
-        NR::FuncType(_) => true,
-        NR::App(_) => true,
-        NR::Type => false,
-        NR::IncreaseVars(_) => true,
-        // NR::DecreaseVars(_) => true,
-        // NR::Set0(_) => true,
-        NR::Let(_) => true,
+    fn pretty_print_at(&self, root: Id) -> PrettyPrinter {
+        PrettyPrinter {
+            expr: self,
+            root,
+            depth: 0,
+            as_atom: false,
+        }
     }
 }
 
-fn pretty_atom<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: isize) {
-    let node = &expr[root];
-    if needs_parenthesis(node) {
-        write!(out, "(").unwrap();
-        pretty(expr, root, out, depth);
-        write!(out, ")").unwrap();
-    } else {
-        pretty(expr, root, out, depth);
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Pretty<RecRef> where RecRef: Borrow<Rec> {
-    expr: RecRef,
-    root: Id,
-    depth: isize,
+#[derive(Clone)]
+pub struct PrettyPrintOwned {
+    expr: Rec,
+    id: Id,
     as_atom: bool,
 }
 
-impl<RecRef: Borrow<Rec>> Pretty<RecRef> {
-    pub fn new(expr: RecRef, root: Id) -> Self {
-        Self {
-            expr,
-            root,
-            depth: 0,
-            as_atom: true,
-        }
+impl PrettyPrint for PrettyPrintOwned {
+    fn pretty_print(&self) -> PrettyPrinter {
+        self.pretty_print_at(self.id)
     }
 
-    #[allow(dead_code)]
-    pub fn with_as_atom(mut self, as_atom: bool) -> Self {
-        self.as_atom = as_atom;
-        self
+    fn pretty_print_at(&self, root: Id) -> PrettyPrinter {
+        self.expr.pretty_print_at(root).set_as_atom(self.as_atom)
     }
 }
 
-impl<R: Borrow<Rec>> Debug for Pretty<R> {
+impl Debug for PrettyPrintOwned {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Debug::fmt(&self.pretty_print(), f)
+    }
+}
+
+impl Display for PrettyPrintOwned {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.pretty_print(), f)
+    }
+}
+
+impl PrettyPrintOwned {
+    pub fn new(expr: Rec, id: Id, as_atom: bool) -> Self {
+        Self { expr, id, as_atom }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct PrettyPrinter<'a> {
+    expr: &'a Rec,
+    root: Id,
+    depth: usize,
+    as_atom: bool,
+}
+
+impl<'a> PrettyPrinter<'a> {
+    pub fn as_atom(&self) -> Self {
+        Self {
+            as_atom: true,
+            ..*self
+        }
+    }
+
+    pub fn not_as_atom(&self) -> Self {
+        Self {
+            as_atom: false,
+            ..*self
+        }
+    }
+
+    pub fn set_as_atom(&self, v: bool) -> Self {
+        if v { self.as_atom() } else { self.not_as_atom() }
+    }
+
+    pub fn inc_depth(&self) -> Self {
+        Self {
+            depth: self.depth + 1,
+            ..*self
+        }
+    }
+
+    pub fn at_root(&self, root: Id) -> Self {
+        Self { root, ..*self }
+    }
+
+    // Starts at 0. Goes a..za'..z'a''...
+    fn generate_name_for_depth(depth: usize) -> String {
+        let mut iter = 'a'..='z';
+        let size = iter.clone().count();
+        if depth < size {
+            iter.nth(depth).unwrap().to_string()
+        } else {
+            Self::generate_name_for_depth(depth - size) + "'"
+        }
+    }
+
+    // Gets the name at the given DeBrujin index at the current depth.
+    fn get_name(&self, index: DeBrujin) -> String {
+        if index >= self.depth {
+            // Free variables
+            Self {
+                depth: index + 1,
+                ..*self
+            }
+            .get_name(self.depth)
+            .to_uppercase()
+        } else {
+            let var_depth = self.depth - index - 1;
+            Self::generate_name_for_depth(var_depth)
+        }
+    }
+
+    fn next_var_name(&self) -> String {
+        Self::generate_name_for_depth(self.depth)
+    }
+
+    fn needs_parenthesis(&self) -> bool {
+        use NameResolved::*;
+        self.as_atom
+            && match &self.expr[self.root] {
+                Var(_) | Type => false,
+                Func(_) | FuncType(_) | Let(_) | App(_) => true,
+                IncreaseVars([_, e]) => self.at_root(*e).needs_parenthesis(),
+            }
+    }
+
+    fn binder_str(&self) -> Option<&'static str> {
+        match self.expr[self.root] {
+            NameResolved::Func(_) => Some("=>"),
+            NameResolved::FuncType(_) => Some("->"),
+            _ => None,
+        }
+    }
+
+    fn print_expr(&self, f: &mut Formatter) -> fmt::Result {
+        use NameResolved::*;
+        match self.expr[self.root] {
+            Var(index) => {
+                let name = self.get_name(index);
+                write!(f, "{}", name)?;
+            }
+            Func([param_type, right]) | FuncType([param_type, right]) => {
+                write!(f, "{}: ", self.next_var_name())?;
+                self.at_root(param_type).as_atom().print(f)?;
+                write!(f, " {} ", self.binder_str().unwrap())?;
+                self.inc_depth().at_root(right).print_expr(f)?;
+                // Depth + 1 because we added the parameter!
+            }
+            App([func, arg]) => {
+                self.as_atom().at_root(func).print(f)?;
+                write!(f, " ")?;
+                self.as_atom().at_root(arg).print(f)?;
+            }
+            Type => write!(f, "type")?,
+            IncreaseVars([var, x]) => {
+                write!(f, "inc-vars ")?;
+                self.as_atom().at_root(var).print(f)?;
+                write!(f, " ")?;
+                self.at_root(x).print_expr(f)?;
+            }
+            Let([var, value, expr]) => {
+                todo!()
+                /*
+                // let {var} = {value} in {expr}
+                let var = expect_var(var);
+                let var_name = var_name_from_depth(var_depth(depth, var));
+                write!(out, "let {} = ", var_name).unwrap();
+                pretty_atom(expr, *value, out, depth);
+                write!(out, " in ").unwrap();
+                pretty(expr, *expr, out, depth);
+                */
+            } // NR::DecreaseVars(_) => todo!(),
+        }
+        Ok(())
+    }
+
+    fn print(&self, f: &mut Formatter) -> fmt::Result {
+        if self.needs_parenthesis() {
+            write!(f, "(");
+        }
+
+        self.print_expr(f)?;
+
+        if self.needs_parenthesis() {
+            write!(f, ")");
+        }
+
+        Ok(())
+    }
+}
+
+impl Debug for PrettyPrinter<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Pretty(")?;
-        pretty(self.expr.borrow(), self.root, f, self.depth);
+        Display::fmt(&self.not_as_atom(), f)?;
         write!(f, ")")?;
         Ok(())
     }
 }
 
-impl<R: Borrow<Rec>> Display for Pretty<R> {
+impl Display for PrettyPrinter<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        pretty_atom(self.expr.borrow(), self.root, f, self.depth);
-        Ok(())
+        self.print(f)
     }
 }
 
-fn pretty<W: Write>(expr: &Rec, root: Id, out: &mut W, depth: isize) {
-    use NameResolved as NR;
-    let node = &expr[root];
-    let expect_var = |id: Id| match expr[id] {
-        NR::Var(var) => var,
-        _ => panic!("Expected a Var, found {:?}", expr[id]),
-    };
-    match node {
-        NR::Var(index) => {
-            let name = var_name_from_depth(var_depth(depth, *index));
-            write!(out, "{}", name).unwrap();
-        }
-        NR::Func([param_type, right]) | NR::FuncType([param_type, right]) => {
-            // ({param_name} : {param_type}) {binder} {body}
-            let is_func_type = matches!(node, NR::FuncType(_));
-            let binder = if is_func_type { "->" } else { "=>" };
-            let param_name = var_name_from_depth(var_depth(depth + 1, 0));
-
-            write!(out, "{}: ", param_name).unwrap();
-            pretty_atom(expr, *param_type, out, depth);
-            write!(out, " {binder} ").unwrap();
-            pretty(expr, *right, out, depth + 1);
-            // Depth + 1 because we added the parameter!
-        }
-        NR::App([func, arg]) => {
-            // {func} {arg}  but we need parens if not atoms.
-            pretty_atom(expr, *func, out, depth);
-            write!(out, " ").unwrap();
-            pretty_atom(expr, *arg, out, depth);
-        }
-        NR::Type => write!(out, "type").unwrap(),
-        NR::IncreaseVars([var, x]) => {
-            pretty(expr, *x, out, depth - 1);
-        }
-        &NR::Let([var, value, expr]) => {
-            todo!()
-            /*
-            // let {var} = {value} in {expr}
-            let var = expect_var(var);
-            let var_name = var_name_from_depth(var_depth(depth, var));
-            write!(out, "let {} = ", var_name).unwrap();
-            pretty_atom(expr, *value, out, depth);
-            write!(out, " in ").unwrap();
-            pretty(expr, *expr, out, depth);
-            */
-        }
-        // NR::DecreaseVars(_) => todo!(),
-        // NR::Set0(_) => todo!(),
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -157,37 +238,32 @@ mod tests {
         let mut expr = Rec::default();
         let var0 = expr.add(NR::Var(0));
         let var1 = expr.add(NR::Var(1));
-        let root = expr.add(NR::Func([var0, var1]));
-        let pretty = Pretty::new(&expr, root).to_string();
-        assert_eq!(pretty, "(b: a => a)");
+        expr.add(NR::Func([var0, var1]));
+        let pretty = expr.pretty_print().as_atom().to_string();
+        assert_eq!(pretty, "(a: A => A)");
     }
 
     fn parse_and_pretty(str: &'static str) -> String {
         use crate::lex::lex;
-        use crate::parse::parse;
         use crate::name_resolution::NameResolved;
+        use crate::parse::parse;
         let tokens = lex(str);
         let expr = parse(&tokens).unwrap();
         let root = Id::from(expr.as_ref().len() - 1);
         let mut name_resolved = RecExpr::default();
-        let root = NameResolved::resolve(&expr, root, &["type"], &mut name_resolved).unwrap();
-        Pretty::new(&name_resolved, root).to_string()
-    }
-
-    #[test]
-    fn test_pretty_turns_type_to_var0() {
-        let pretty = parse_and_pretty("type");
-        // Var 0 is displayed as 'a'.
-        assert_eq!(pretty, "a");
+        let root = NameResolved::resolve(&expr, root, &[], &mut name_resolved).unwrap();
+        name_resolved.pretty_print_at(root).to_string()
     }
 
     #[test]
     fn test_large_expression() {
-        let pretty = parse_and_pretty("
+        let pretty = parse_and_pretty(
+            "
             (x: (y: type -> type) => x) (a : type => type)
-        ");
+        ",
+        );
         let actual = "
-            ((b: (b: a -> a) => b) (b: a => a))
+            (a: (a: type -> type) => a) (a: type => type)
         ";
         // Var 0 is displayed as 'a'.
         assert_eq!(pretty.trim(), actual.trim());
@@ -195,12 +271,16 @@ mod tests {
 
     #[test]
     fn with_and_without_var() {
-        let pretty_a = parse_and_pretty("
+        let pretty_a = parse_and_pretty(
+            "
             (type -> type) -> type
-        ");
-        let pretty_b = parse_and_pretty("
+        ",
+        );
+        let pretty_b = parse_and_pretty(
+            "
             aa: (a: type -> type) -> type
-        ");
+        ",
+        );
         assert_eq!(pretty_a, pretty_b);
     }
 }

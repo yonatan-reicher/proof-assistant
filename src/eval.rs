@@ -238,9 +238,23 @@ pub fn inc_vars_reduction() -> Vec<Rewrite<Lang, Analysis>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pretty::PrettyPrint;
 
     type EGraph = egg::EGraph<NameResolved, Analysis>;
     use NameResolved::*;
+
+    fn parse_and_run(code: &'static str) -> RecExpr<NameResolved> {
+        use crate::lex::lex;
+        use crate::parse::parse;
+
+        let expr = parse(&lex(code)).unwrap();
+        let mut nr = RecExpr::default();
+        let root =
+            NameResolved::resolve(&expr, Id::from(expr.as_ref().len() - 1), &[], &mut nr).unwrap();
+        let mut e = EGraph::default();
+        e.add_expr(&nr);
+        run_and_extract(&mut e, root)
+    }
 
     #[test]
     fn test_beta_reduction_single() {
@@ -374,5 +388,11 @@ mod tests {
         assert_eq!(egraph[app20].id, egraph[var1].id);
         assert_eq!(egraph[app21].id, egraph[var1].id);
         assert_eq!(egraph[app22].id, egraph[var1].id);
+    }
+
+    #[test]
+    fn test() {
+        let e = parse_and_run("(a: (type -> type) => a type) (x: type => type)");
+        assert_eq!(e.pretty_print().to_string(), "type");
     }
 }

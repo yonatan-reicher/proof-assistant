@@ -91,12 +91,13 @@ impl Applier<Lang, Analysis> for VarApplier {
     }
 }
 
-pub fn beta_reduction<T: egg::Analysis<Lang>>() -> Rewrite<Lang, T> {
+pub fn beta_reduction() -> Rewrite<Lang, Analysis> {
     rewrite!(
         "beta-reduction";
         "(app (lam ?T ?body) ?arg)"
         // => "(dec-vars (set0 ?body (inc-vars ?arg)))"
         => "(let 0 ?arg ?body)"
+        if not_etable("?body")
     )
 }
 
@@ -157,6 +158,29 @@ fn not_etable(var: &'static str) -> impl Fn(&mut EGraph<Lang, Analysis>, Id, &Su
         !eta_pattern_found
     }
 }
+
+fn has_free_vars(var: &'static str) -> impl Fn(&mut EGraph<Lang, Analysis>, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+
+    move |egraph, _, subst| {
+        let eclass = &egraph[subst[var]];
+        !eclass.data.free_variables.0.is_empty()
+    }
+}
+
+fn or(
+    a: impl Fn(&mut EGraph<Lang, Analysis>, Id, &Subst) -> bool,
+    b: impl Fn(&mut EGraph<Lang, Analysis>, Id, &Subst) -> bool,
+) -> impl Fn(&mut EGraph<Lang, Analysis>, Id, &Subst) -> bool {
+    move |egraph, id, subst| a(egraph, id, subst) || b(egraph, id, subst)
+}
+
+fn not(
+    a: impl Fn(&mut EGraph<Lang, Analysis>, Id, &Subst) -> bool,
+) -> impl Fn(&mut EGraph<Lang, Analysis>, Id, &Subst) -> bool {
+    move |egraph, id, subst| !a(egraph, id, subst)
+}
+
 
 pub fn let_reduction() -> Vec<Rewrite<NameResolved, Analysis>> {
     let dec_v = VarApplier {
@@ -221,6 +245,7 @@ pub fn inc_vars_reduction() -> Vec<Rewrite<Lang, Analysis>> {
             "inc-vars-lam";
             "(inc-vars ?V (lam ?T ?B))"
             => "(lam (inc-vars ?V ?T) (inc-vars (inc-vars 0 ?V) ?B))"
+            if not_etable("?B")
         ),
         rewrite!(
             "inc-vars-pi";
@@ -231,6 +256,12 @@ pub fn inc_vars_reduction() -> Vec<Rewrite<Lang, Analysis>> {
             "inc-vars-app";
             "(inc-vars ?V (app ?func ?arg))"
             => "(app (inc-vars ?V ?func) (inc-vars ?V ?arg))"
+            if or(has_free_vars("?func"), has_free_vars("?arg"))
+        ),
+        rewrite!(
+            "inc-vars-no-free-vars";
+            "(inc-vars ?V ?E)" => "?E"
+            if not(has_free_vars("?E"))
         ),
     ]
 }

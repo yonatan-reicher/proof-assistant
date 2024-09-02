@@ -141,7 +141,7 @@ impl<'a> PrettyPrinter<'a> {
             && match &self.expr[self.root] {
                 Var(_) | Type => false,
                 Func(_) | FuncType(_) | Let(_) | App(_) => true,
-                IncreaseVars([_, e]) => self.at_root(*e).needs_parenthesis(),
+                IncreaseVars(..) => true,
             }
     }
 
@@ -153,6 +153,7 @@ impl<'a> PrettyPrinter<'a> {
         }
     }
 
+    /// Prints this expression but disregards the `as_atom` flag.
     fn print_expr(&self, f: &mut Formatter) -> fmt::Result {
         use NameResolved::*;
         match self.expr[self.root] {
@@ -177,7 +178,7 @@ impl<'a> PrettyPrinter<'a> {
                 write!(f, "inc-vars ")?;
                 self.as_atom().at_root(var).print(f)?;
                 write!(f, " ")?;
-                self.at_root(x).print_expr(f)?;
+                self.as_atom().at_root(x).print(f)?;
             }
             Let([var, value, expr]) => {
                 todo!()
@@ -197,13 +198,13 @@ impl<'a> PrettyPrinter<'a> {
 
     fn print(&self, f: &mut Formatter) -> fmt::Result {
         if self.needs_parenthesis() {
-            write!(f, "(");
+            write!(f, "(")?;
         }
 
         self.print_expr(f)?;
 
         if self.needs_parenthesis() {
-            write!(f, ")");
+            write!(f, ")")?;
         }
 
         Ok(())

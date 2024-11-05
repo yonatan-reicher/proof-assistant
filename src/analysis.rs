@@ -12,9 +12,13 @@ use crate::name_resolution::NameResolved as Lang;
 use egg::{Analysis as EggAnalysis, EGraph};
 
 
+/// The main analysis.
+///
+/// `Analysis` = `FreeVariables` + `IsFunctionType` + `VarFolding`.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Analysis(FreeVariables, IsFunctionType, VarFolding);
 
+/// The data of the main analysis.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Data {
     pub free_variables: FVData,

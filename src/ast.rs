@@ -1,5 +1,4 @@
-//! This module holds the definitions and
-//! common functions for working with the
+//! This module holds the definitions and common functions for working with the
 //! AST for the proof assistant.
 
 use egg::{Id, Symbol};

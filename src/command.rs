@@ -1,4 +1,4 @@
-//! This module contains the `Command` type, which represents the differenet
+//! This module contains the `Command` type, which represents the different
 //! things the executable can do depending on arguments.
 
 use std::path::PathBuf;

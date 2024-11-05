@@ -2,7 +2,6 @@ mod analysis;
 mod ast;
 mod command;
 mod eval;
-mod is_function_type;
 mod lex;
 mod name_resolution;
 mod parse;

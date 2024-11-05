@@ -1,9 +1,13 @@
+//! This module contains all the analyses used in the project.
+//! The analyses are contained in the sub-modules, and the main analysis is defined here.
+
 mod free_variables;
 mod var_folding;
+mod is_function_type;
 
 use free_variables::{FreeVariables, Data as FVData};
 use var_folding::{VarFolding, Data as VFData};
-use crate::is_function_type::{IsFunctionType, Data as IFTData};
+use is_function_type::{IsFunctionType, Data as IFTData};
 use crate::name_resolution::NameResolved as Lang;
 use egg::{Analysis as EggAnalysis, EGraph};
 
